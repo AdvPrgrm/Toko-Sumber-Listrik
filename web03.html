@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sumber Listrik — Toko Elektronik</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 0; background: #f8fafc; color: #333; }
+  header { background: white; border-bottom: 1px solid #ddd; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 20px; color: #2563eb; margin: 0; }
+  .search { flex: 1; margin: 0 20px; }
+  .search input, select { width: 100%; padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; }
+  main { max-width: 1200px; margin: auto; padding: 20px; }
+  .controls { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+  .products { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+  .card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+  .card img { width: 100%; height: 180px; object-fit: cover; }
+  .card-content { padding: 10px; flex: 1; display: flex; flex-direction: column; }
+  .price { font-weight: bold; color: #2563eb; margin: 5px 0; }
+  button { background: #2563eb; color: white; border: none; padding: 6px 10px; border-radius: 5px; cursor: pointer; margin-top: 5px; }
+  button:hover { background: #1d4ed8; }
+  .qty { display: flex; align-items: center; gap: 5px; margin-top: 5px; }
+  .qty button { padding: 4px 8px; }
+  footer { background: white; border-top: 1px solid #ddd; padding: 15px; text-align: center; font-size: 14px; color: #666; margin-top: 20px; }
+  /* Checkout */
+  #checkoutPage { display: none; max-width: 800px; margin: auto; padding: 20px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  th { background: #f1f5f9; }
+  form input, form textarea, form select { width: 100%; padding: 8px; margin: 5px 0 15px; border: 1px solid #ccc; border-radius: 6px; }
+  /* Modal */
+  .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; }
+  .modal-content { background: white; padding: 20px; border-radius: 10px; max-width: 500px; width: 90%; position: relative; }
+  .modal-content img { width: 100%; height: 250px; object-fit: cover; border-radius: 8px; }
+  .close { position: absolute; top: 10px; right: 15px; font-size: 20px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sumber Listrik</h1>
+  <div class="search">
+    <input type="text" id="searchBox" placeholder="Cari produk..." />
+  </div>
+  <div>
+    🛒 <span id="cartCount">0</span> | 
+    <a href="#" onclick="goToCheckout()">Checkout</a>
+  </div>
+</header>
+
+<main id="catalogPage">
+  <h2>Katalog Produk</h2>
+  <div class="controls">
+    <input type="number" id="maxPrice" placeholder="Harga Maks" />
+    <select id="sortBy">
+      <option value="">Urutkan</option>
+      <option value="low">Harga Terendah</option>
+      <option value="high">Harga Tertinggi</option>
+      <option value="name">Nama Produk</option>
+    </select>
+  </div>
+  <div class="products" id="productList"></div>
+</main>
+
+<section id="checkoutPage">
+  <h2>Checkout</h2>
+  <table id="checkoutTable">
+    <thead>
+      <tr><th>Produk</th><th>Jumlah</th><th>Harga</th><th>Total</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <h3 id="grandTotal">Total Belanja: Rp 0</h3>
+
+  <h3>Data Pembeli</h3>
+  <form id="buyerForm">
+    <label>Nama Lengkap</label>
+    <input type="text" name="nama" required />
+    <label>Alamat Lengkap</label>
+    <textarea name="alamat" required></textarea>
+    <label>No. Telepon</label>
+    <input type="text" name="telepon" required />
+    <label>Metode Pembayaran</label>
+    <select name="pembayaran" required>
+      <option value="transfer">Transfer Bank</option>
+      <option value="cod">Cash on Delivery</option>
+      <option value="ewallet">E-Wallet</option>
+    </select>
+    <button type="submit">Konfirmasi Pesanan</button>
+  </form>
+  <button onclick="goBack()">← Kembali ke Katalog</button>
+</section>
+
+<!-- Modal Detail Produk -->
+<div id="productModal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <img id="modalImg" src="" alt="Produk" />
+    <h3 id="modalName"></h3>
+    <div class="price" id="modalPrice"></div>
+    <p id="modalDesc"></p>
+    <button onclick="addToCartModal()">Tambah ke Keranjang</button>
+  </div>
+</div>
+
+<footer>
+  © 2025 Sumber Listrik — Semua hak cipta dilindungi.
+</footer>
+
+<script>
+const products = [
+  { id: 1, name: "SumberPhone X2 128GB", price: 3799000, image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=600", desc: "Smartphone dengan performa tinggi, RAM besar, dan kamera canggih." },
+  { id: 2, name: "Laptop Orion 14 Pro", price: 8999000, image: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?q=80&w=600", desc: "Laptop ringan dengan prosesor cepat dan layar jernih." },
+  { id: 3, name: "Headphone BassMax 700", price: 1599000, image: "https://plus.unsplash.com/premium_photo-1679513691474-73102089c117?q=80&w=1113", desc: "Headphone dengan bass mendalam dan nyaman dipakai lama." },
+  { id: 4, name: "Smart TV Nebula 55\" 4K", price: 6199000, image: "https://images.unsplash.com/photo-1646861039459-fd9e3aabf3fb?q=80&w=1026", desc: "Smart TV 4K dengan layar lebar dan fitur cerdas." }
+];
+
+let cart = {};
+let cartCount = 0;
+const cartCounter = document.getElementById("cartCount");
+const productList = document.getElementById("productList");
+const searchBox = document.getElementById("searchBox");
+const maxPriceInput = document.getElementById("maxPrice");
+const sortBySelect = document.getElementById("sortBy");
+
+function renderProducts(list) {
+  productList.innerHTML = "";
+  list.forEach(p => {
+    const qty = cart[p.id] || 0;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <img src="${p.image}" alt="${p.name}" />
+      <div class="card-content">
+        <h3>${p.name}</h3>
+        <div class="price">Rp ${p.price.toLocaleString("id-ID")}</div>
+        <div class="qty">
+          <button onclick="changeQty(${p.id}, -1)">-</button>
+          <span>${qty}</span>
+          <button onclick="changeQty(${p.id}, 1)">+</button>
+        </div>
+        <button onclick="openModal(${p.id})">Lihat Detail</button>
+      </div>
+    `;
+    productList.appendChild(card);
+  });
+}
+
+function changeQty(id, delta) {
+  cart[id] = (cart[id] || 0) + delta;
+  if (cart[id] <= 0) delete cart[id];
+  updateCartCount();
+  applyFilters();
+}
+
+function updateCartCount() {
+  let total = Object.values(cart).reduce((a,b)=>a+b,0);
+  cartCounter.textContent = total;
+}
+
+function goToCheckout() {
+  document.getElementById("catalogPage").style.display = "none";
+  document.getElementById("checkoutPage").style.display = "block";
+  renderCheckout();
+}
+
+function goBack() {
+  document.getElementById("catalogPage").style.display = "block";
+  document.getElementById("checkoutPage").style.display = "none";
+}
+
+function renderCheckout() {
+  const tbody = document.querySelector("#checkoutTable tbody");
+  tbody.innerHTML = "";
+  let grand = 0;
+  for (let id in cart) {
+    const p = products.find(x => x.id == id);
+    let total = cart[id] * p.price;
+    grand += total;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${p.name}</td><td>${cart[id]}</td><td>Rp ${p.price.toLocaleString("id-ID")}</td><td>Rp ${total.toLocaleString("id-ID")}</td>`;
+    tbody.appendChild(tr);
+  }
+  document.getElementById("grandTotal").textContent = "Total Belanja: Rp " + grand.toLocaleString("id-ID");
+}
+
+/* Modal Detail */
+function openModal(id) {
+  const p = products.find(x => x.id===id);
+  document.getElementById("modalImg").src = p.image;
+  document.getElementById("modalName").textContent = p.name;
+  document.getElementById("modalPrice").textContent = "Rp "+p.price.toLocaleString("id-ID");
+  document.getElementById("modalDesc").textContent = p.desc;
+  document.getElementById("productModal").style.display = "flex";
+  window.currentModalId = id;
+}
+
+function closeModal() {
+  document.getElementById("productModal").style.display = "none";
+}
+
+function addToCartModal() {
+  const id = window.currentModalId;
+  changeQty(id, 1);
+  closeModal();
+}
+
+/* Filter & Sort */
+searchBox.addEventListener("input", applyFilters);
+maxPriceInput.addEventListener("input", applyFilters);
+sortBySelect.addEventListener("change", applyFilters);
+
+function applyFilters() {
+  let q = searchBox.value.toLowerCase();
+  let max = parseInt(maxPriceInput.value) || Infinity;
+  let sorted = [...products].filter(p=>p.name.toLowerCase().includes(q)&&p.price<=max);
+  if(sortBySelect.value==="low") sorted.sort((a,b)=>a.price-b.price);
+  if(sortBySelect.value==="high") sorted.sort((a,b)=>b.price-a.price);
+  if(sortBySelect.value==="name") sorted.sort((a,b)=>a.name.localeCompare(b.name));
+  renderProducts(sorted);
+}
+
+renderProducts(products);
+
+/* Form submit */
+document.getElementById("buyerForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  alert("Pesanan berhasil dikonfirmasi!");
+  cart = {};
+  updateCartCount();
+  goBack();
+});
+</script>
+
+</body>
+</html>
